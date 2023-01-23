@@ -138,7 +138,7 @@ namespace GameObjectBlacklist
 
                 ////////////////////////////////////////////////////////////////////////////////////
 
-                // Normal Object Names To Remove // - This Is To Just For Default Object Names
+                // Normal Object Names To Remove //
 
                 // Normal Armature
                 "Armature/Capsule",
