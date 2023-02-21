@@ -19,9 +19,13 @@ namespace GameObjectBlacklist
         private static userJoined s_userJoined;
         public override void OnApplicationStart()
         {
-            NativeHook();
             logs = true;
             MelonLogger.Msg(ConsoleColor.Cyan, "RightCTRL + Backspace To Disable/Enable Logging Of Objects That Get Destroyed");
+        }
+
+        public override void OnApplicationLateStart()
+        {
+            NativeHook();
         }
 
         public override void OnUpdate()
@@ -241,10 +245,23 @@ namespace GameObjectBlacklist
         // Native Hook For OnPlayerJoined //
         private unsafe void NativeHook()
         {
-            var JoinmethodInfos = typeof(NetworkManager).GetMethods().FirstOrDefault(x => x.Name == "Method_Public_Void_Player_1");
-            var JoinmethodPointer = *(IntPtr*)(IntPtr)UnhollowerBaseLib.UnhollowerUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(JoinmethodInfos).GetValue(null);
-            MelonUtils.NativeHookAttach((IntPtr)(&JoinmethodPointer), typeof(GameObjectBlacklist).GetMethod(nameof(OnJoin), BindingFlags.Static | BindingFlags.NonPublic)!.MethodHandle.GetFunctionPointer());
-            s_userJoined = Marshal.GetDelegateForFunctionPointer<userJoined>(JoinmethodPointer);
+            var methodInfos = typeof(NetworkManager).GetMethods().Where(x => x.Name.StartsWith("Method_Public_Void_Player_")).ToArray();
+
+            for (int i = 0; i < methodInfos.Length; i++)
+            {
+                var mt = UnhollowerRuntimeLib.XrefScans.XrefScanner.XrefScan(methodInfos[i]).ToArray();
+                for (int j = 0; j < mt.Length; j++)
+                {
+                    if (mt[j].Type != UnhollowerRuntimeLib.XrefScans.XrefType.Global) continue;
+
+                    if (mt[j].ReadAsObject().ToString().Contains("OnPlayer"))
+                    {
+                        var methodPointer = *(IntPtr*)(IntPtr)UnhollowerBaseLib.UnhollowerUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(methodInfos[i]).GetValue(null);
+                        MelonUtils.NativeHookAttach((IntPtr)(&methodPointer), typeof(GameObjectBlacklist).GetMethod(nameof(OnJoin), BindingFlags.Static | BindingFlags.NonPublic)!.MethodHandle.GetFunctionPointer());
+                        s_userJoined = Marshal.GetDelegateForFunctionPointer<userJoined>(methodPointer);
+                    }
+                }
+            }
         }
 
         // OnPlayerJoined //
