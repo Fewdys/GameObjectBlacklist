@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Linq;
 using UnityEngine;
 using VRC;
+using System.Threading.Tasks;
 
 namespace GameObjectBlacklist
 {
@@ -25,33 +26,18 @@ namespace GameObjectBlacklist
 
         public override void OnApplicationLateStart()
         {
-            NativeHook();
+            Task.Run(() => { OnPlayer.InitPatches(); });
         }
 
         public override void OnUpdate()
         {
-            // Originally Just Did Space Personally, But Added The Others To Have It Check More Frequently // - You Could Just Not Have It On A Input Like The Line Below, But If Your List Becomes Large This Can Get Unoptimized Extremely Fast
-            // Feel Free To Remove Any Of These // - Recommend Keeping Atleast The One For Space Unless You Plan On Having It Check Another Way
+            // Originally Just Did Space Personally // - You Could Just Not Have It On A Input Like The Line Below, But This Could Cause Drops In Frames In General & If Your List Becomes Large This Can Get Unoptimized Extremely Fast
+            // Feel Free To Change This The Input Key Or Create Something More Optimized For It Ect //
             // If You Want To Add A Input For Being In VR Then Go For It //
 
             /*StuffToDestroy();*/
 
             if (Input.GetKeyDown(KeyCode.Space))
-            {
-                StuffToDestroy();
-            }
-
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                StuffToDestroy();
-            }
-
-            if (Input.GetKeyDown(KeyCode.C))
-            {
-                StuffToDestroy();
-            }
-
-            if (Input.GetKeyDown(KeyCode.Z))
             {
                 StuffToDestroy();
             }
@@ -240,43 +226,6 @@ namespace GameObjectBlacklist
                 }
             }
             catch { }
-        }
-
-        // Native Hook For OnPlayerJoined //
-        private unsafe void NativeHook()
-        {
-            var methodInfos = typeof(NetworkManager).GetMethods().Where(x => x.Name.StartsWith("Method_Public_Void_Player_")).ToArray();
-
-            for (int i = 0; i < methodInfos.Length; i++)
-            {
-                var mt = UnhollowerRuntimeLib.XrefScans.XrefScanner.XrefScan(methodInfos[i]).ToArray();
-                for (int j = 0; j < mt.Length; j++)
-                {
-                    if (mt[j].Type != UnhollowerRuntimeLib.XrefScans.XrefType.Global) continue;
-
-                    if (mt[j].ReadAsObject().ToString().Contains("OnPlayer"))
-                    {
-                        var methodPointer = *(IntPtr*)(IntPtr)UnhollowerBaseLib.UnhollowerUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(methodInfos[i]).GetValue(null);
-                        MelonUtils.NativeHookAttach((IntPtr)(&methodPointer), typeof(GameObjectBlacklist).GetMethod(nameof(OnJoin), BindingFlags.Static | BindingFlags.NonPublic)!.MethodHandle.GetFunctionPointer());
-                        s_userJoined = Marshal.GetDelegateForFunctionPointer<userJoined>(methodPointer);
-                    }
-                }
-            }
-        }
-
-        // OnPlayerJoined //
-        private static void OnJoin(IntPtr _instance, IntPtr _user, IntPtr _methodInfo)
-        {
-            s_userJoined(_instance, _user, _methodInfo);
-            var vrcPlayer = UnhollowerSupport.Il2CppObjectPtrToIl2CppObject<VRC.Player>(_user);
-            if (vrcPlayer != null)
-            {
-                try
-                {
-                    StuffToDestroy();
-                }
-                catch { }
-            }
         }
     }
 }
